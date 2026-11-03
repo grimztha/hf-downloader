@@ -23,19 +23,21 @@ func main() {
 		Height:    800,
 		MinWidth:  900,
 		MinHeight: 650,
+		Frameless: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 15, G: 23, B: 42, A: 1}, // Slate 900
+		BackgroundColour: &options.RGBA{R: 11, G: 15, B: 25, A: 1}, // Matches dark-900 / #0b0f19
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{
 			app,
 		},
 		Windows: &windows.Options{
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
-			BackdropType:         windows.Mica,
+			WebviewIsTransparent:              false,
+			WindowIsTranslucent:               false,
+			BackdropType:                      windows.Mica,
+			DisableFramelessWindowDecorations: false,
 		},
 	})
 

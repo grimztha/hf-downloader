@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store'
+import { WindowSetDarkTheme, WindowSetLightTheme } from '../../../wailsjs/runtime/runtime'
 
 export type Theme = 'dark' | 'light'
 
@@ -30,11 +31,25 @@ function applyTheme(newTheme: Theme) {
     root.classList.remove('dark')
     root.classList.add('light')
     root.style.colorScheme = 'light'
+    try {
+      WindowSetLightTheme()
+    } catch {}
   } else {
     root.classList.remove('light')
     root.classList.add('dark')
     root.style.colorScheme = 'dark'
+    try {
+      WindowSetDarkTheme()
+    } catch {}
   }
+}
+
+export function setTheme(newTheme: Theme) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, newTheme)
+  }
+  applyTheme(newTheme)
+  theme.set(newTheme)
 }
 
 export function toggleTheme() {

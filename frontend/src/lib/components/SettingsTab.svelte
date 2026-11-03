@@ -2,8 +2,9 @@
   import { onDestroy } from 'svelte'
   import { settingsStore, persistSettings, openTokenPage } from '../stores/settings'
   import { browseDirectory } from '../stores/bookmarks'
+  import { theme, setTheme } from '../stores/theme'
   import type { Settings, RoutingRule } from '../types'
-  import { Settings as SettingsIcon, Save, KeyRound, ExternalLink, Plus, Trash2, Cpu, FolderOpen, Gauge } from 'lucide-svelte'
+  import { Settings as SettingsIcon, Save, KeyRound, ExternalLink, Plus, Trash2, Cpu, FolderOpen, Gauge, Palette, Sun, Moon } from 'lucide-svelte'
 
   let localSettings: Settings | null = null
   let saving: boolean = false
@@ -243,6 +244,99 @@
       <p class="text-xs text-slate-400 dark:text-slate-400">
         Enables downloading gated models like FLUX.1-dev, SD3, and Llama 3 without authentication prompts.
       </p>
+    </div>
+
+    <!-- Appearance & Theme Selector (Radio Toggle) -->
+    <div class="bg-dark-900 border border-dark-700/70 rounded-xl p-5 flex flex-col gap-3.5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <label class="text-sm font-bold text-slate-100 dark:text-white flex items-center gap-2">
+            <Palette class="w-4 h-4 text-accent-indigo" />
+            <span>Appearance & Theme</span>
+          </label>
+          <p class="text-xs text-slate-400 dark:text-slate-400 mt-1">
+            Choose your preferred color scheme for the application workspace.
+          </p>
+        </div>
+        <div class="px-2.5 py-1 rounded-lg bg-dark-950 border border-dark-700 text-xs font-mono font-medium text-accent-cyan capitalize">
+          {$theme} mode
+        </div>
+      </div>
+
+      <!-- Theme Radio Toggle Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <!-- Dark Theme Radio Option -->
+        <label
+          class="relative flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all select-none {
+            $theme === 'dark'
+              ? 'bg-dark-950 border-accent-indigo ring-1 ring-accent-indigo/60 shadow-md shadow-indigo-500/10'
+              : 'bg-dark-950/60 border-dark-700/70 hover:border-dark-600 hover:bg-dark-950 text-slate-400'
+          }"
+        >
+          <input
+            type="radio"
+            name="app-theme-radio"
+            value="dark"
+            checked={$theme === 'dark'}
+            on:change={() => setTheme('dark')}
+            class="sr-only"
+          />
+          <div class="w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors {
+            $theme === 'dark' ? 'border-accent-indigo bg-accent-indigo' : 'border-slate-600 bg-transparent'
+          }">
+            {#if $theme === 'dark'}
+              <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+            {/if}
+          </div>
+          <div class="p-2 rounded-lg bg-dark-900 border border-dark-700/80 flex items-center justify-center flex-shrink-0">
+            <Moon class="w-4 h-4 {$theme === 'dark' ? 'text-accent-indigo' : 'text-slate-500'}" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs font-bold {$theme === 'dark' ? 'text-white' : 'text-slate-300'}">
+              Dark Theme
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">
+              Deep slate tones, high contrast & low glare
+            </div>
+          </div>
+        </label>
+
+        <!-- Light Theme Radio Option -->
+        <label
+          class="relative flex items-center gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all select-none {
+            $theme === 'light'
+              ? 'bg-dark-950 border-accent-indigo ring-1 ring-accent-indigo/60 shadow-md shadow-indigo-500/10'
+              : 'bg-dark-950/60 border-dark-700/70 hover:border-dark-600 hover:bg-dark-950 text-slate-400'
+          }"
+        >
+          <input
+            type="radio"
+            name="app-theme-radio"
+            value="light"
+            checked={$theme === 'light'}
+            on:change={() => setTheme('light')}
+            class="sr-only"
+          />
+          <div class="w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors {
+            $theme === 'light' ? 'border-accent-indigo bg-accent-indigo' : 'border-slate-600 bg-transparent'
+          }">
+            {#if $theme === 'light'}
+              <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+            {/if}
+          </div>
+          <div class="p-2 rounded-lg bg-dark-900 border border-dark-700/80 flex items-center justify-center flex-shrink-0">
+            <Sun class="w-4 h-4 {$theme === 'light' ? 'text-amber-400' : 'text-slate-500'}" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs font-bold {$theme === 'light' ? 'text-white' : 'text-slate-300'}">
+              Light Theme
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">
+              Crisp clean canvas & dark typography
+            </div>
+          </div>
+        </label>
+      </div>
     </div>
 
     <!-- Concurrency Limits -->

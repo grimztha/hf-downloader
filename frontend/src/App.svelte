@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { EventsOn } from '../wailsjs/runtime/runtime'
+  import {
+    EventsOn,
+    WindowMinimise,
+    WindowToggleMaximise,
+    WindowIsMaximised,
+    Quit
+  } from '../wailsjs/runtime/runtime'
   import { ParseAndInspect, SelectDirectoryDialog, GetAppVersion } from '../wailsjs/go/main/App'
   import type { InspectResponse, FileNode, DownloadItem } from './lib/types'
   import { queueStore, fetchQueue, addQueueItems, handleProgressUpdate } from './lib/stores/queue'
@@ -23,12 +29,9 @@
     Bookmark,
     Settings as SettingsIcon,
     AlertCircle,
-    Zap,
-    KeyRound,
-    Sun,
-    Moon
+    Zap
   } from 'lucide-svelte'
-  import { theme, initTheme, toggleTheme } from './lib/stores/theme'
+  import { initTheme } from './lib/stores/theme'
 
   let activeTab: 'inspector' | 'queue' | 'bookmarks' | 'settings' = 'inspector'
   let appVersion: string = 'v1.1.1'
@@ -36,6 +39,7 @@
   let inspectResult: InspectResponse | null = null
   let inspectError: string = ''
   let isGatedError: boolean = false
+  let isMaximised: boolean = false
 
   // Pre-calculated default destinations mapped by file path
   let defaultDestinations: Record<string, string> = {}
@@ -54,6 +58,29 @@
     ? `${(totalActiveSpeedBps / 1024).toFixed(1)} KB/s`
     : ''
 
+  async function handleMinimise() {
+    WindowMinimise()
+  }
+
+  async function handleToggleMaximise() {
+    WindowToggleMaximise()
+    setTimeout(async () => {
+      try {
+        isMaximised = await WindowIsMaximised()
+      } catch {}
+    }, 60)
+  }
+
+  function handleClose() {
+    Quit()
+  }
+
+  function handleTitlebarDblClick(e: MouseEvent) {
+    const target = e.target as HTMLElement
+    if (target.closest('button, nav, input, a, [data-no-drag]')) return
+    handleToggleMaximise()
+  }
+
   onMount(() => {
     initTheme()
     // Initial data load
@@ -64,6 +91,14 @@
     fetchBookmarks()
     fetchQueue()
 
+    const updateMaxState = async () => {
+      try {
+        isMaximised = await WindowIsMaximised()
+      } catch {}
+    }
+    window.addEventListener('resize', updateMaxState)
+    updateMaxState()
+
     // Listen to live background progress events from Go backend
     const unsub = EventsOn('download:progress', (data: any) => {
       handleProgressUpdate(data as DownloadItem)
@@ -71,6 +106,7 @@
 
     return () => {
       if (unsub) unsub()
+      window.removeEventListener('resize', updateMaxState)
     }
   })
 
@@ -179,30 +215,38 @@
 </script>
 
 <div class="min-h-screen bg-dark-900 text-slate-100 flex flex-col font-sans selection:bg-accent-indigo selection:text-white">
-  <!-- Top Navigation App Bar -->
-  <header class="h-16 border-b border-dark-700/80 bg-dark-850/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
-    <div class="flex items-center gap-3">
-      <!-- App Brand Logo -->
+  <!-- Unified Modern Window Bar & App Header -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <header
+    class="h-12 border-b border-dark-700/80 bg-dark-850/95 backdrop-blur-md px-3.5 flex items-center justify-between sticky top-0 z-30 select-none"
+    style="--wails-draggable: drag; -webkit-app-region: drag;"
+    on:dblclick={handleTitlebarDblClick}
+  >
+    <!-- Left: App Identity -->
+    <div class="flex items-center gap-2.5 flex-shrink-0 pointer-events-none select-none">
       <img
         src={appLogo}
         alt="HF Downloader Logo"
-        class="w-9 h-9 rounded-xl object-contain shadow-md shadow-indigo-500/20"
+        class="w-6 h-6 rounded-lg object-contain shadow-sm shadow-indigo-500/20"
       />
-      <div>
-        <h1 class="text-sm font-black tracking-tight text-white flex items-center gap-2">
-          <span>HF Downloader</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded font-mono bg-dark-700/70 text-accent-indigo font-bold border border-dark-600">{appVersion}</span>
-        </h1>
-        <p class="text-[11px] text-slate-500">Multi-Socket Range Downloader & Path Router</p>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold tracking-tight text-white">HF Downloader</span>
+        <span class="text-[10px] px-1.5 py-0.5 rounded font-mono bg-dark-750/70 text-accent-indigo font-bold border border-dark-600/60 leading-none">
+          {appVersion}
+        </span>
       </div>
     </div>
 
     <!-- Center Navigation Tabs -->
-    <nav class="flex items-center gap-1 bg-dark-950/70 border border-dark-700/60 p-1 rounded-xl">
+    <nav
+      data-no-drag
+      class="flex items-center gap-1 bg-dark-950/70 border border-dark-700/60 p-0.5 rounded-xl shadow-inner mx-4 flex-shrink-0"
+      style="--wails-draggable: no-drag; -webkit-app-region: no-drag;"
+    >
       <button
         type="button"
         on:click={() => (activeTab = 'inspector')}
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors {activeTab === 'inspector' ? 'bg-accent-indigo text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all {activeTab === 'inspector' ? 'bg-accent-indigo text-white shadow-sm shadow-indigo-500/25' : 'text-slate-400 hover:text-slate-200'}"
       >
         <FolderTree class="w-3.5 h-3.5" />
         <span>Repo Inspector</span>
@@ -211,7 +255,7 @@
       <button
         type="button"
         on:click={() => (activeTab = 'queue')}
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors relative {activeTab === 'queue' ? 'bg-accent-indigo text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all relative {activeTab === 'queue' ? 'bg-accent-indigo text-white shadow-sm shadow-indigo-500/25' : 'text-slate-400 hover:text-slate-200'}"
       >
         <ListOrdered class="w-3.5 h-3.5" />
         <span>Queue</span>
@@ -225,7 +269,7 @@
       <button
         type="button"
         on:click={() => (activeTab = 'bookmarks')}
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors {activeTab === 'bookmarks' ? 'bg-accent-indigo text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all {activeTab === 'bookmarks' ? 'bg-accent-indigo text-white shadow-sm shadow-indigo-500/25' : 'text-slate-400 hover:text-slate-200'}"
       >
         <Bookmark class="w-3.5 h-3.5" />
         <span>Bookmarks</span>
@@ -234,17 +278,21 @@
       <button
         type="button"
         on:click={() => (activeTab = 'settings')}
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors {activeTab === 'settings' ? 'bg-accent-indigo text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all {activeTab === 'settings' ? 'bg-accent-indigo text-white shadow-sm shadow-indigo-500/25' : 'text-slate-400 hover:text-slate-200'}"
       >
         <SettingsIcon class="w-3.5 h-3.5" />
         <span>Settings</span>
       </button>
     </nav>
 
-    <!-- Right Live Speed / Token Pill -->
-    <div class="flex items-center gap-3">
+    <!-- Right: Live Speed Indicator & Windows Titlebar Controls -->
+    <div
+      data-no-drag
+      class="flex items-center gap-2 h-full -mr-3.5 flex-shrink-0"
+      style="--wails-draggable: no-drag; -webkit-app-region: no-drag;"
+    >
       {#if formattedTotalSpeed}
-        <div class="flex items-center gap-1.5 px-3 py-1 bg-accent-indigo/10 border border-accent-indigo/30 rounded-full text-xs font-mono text-accent-cyan animate-pulse">
+        <div class="flex items-center gap-1.5 px-2.5 py-1 mr-1 bg-accent-indigo/10 border border-accent-indigo/30 rounded-full text-xs font-mono text-accent-cyan animate-pulse">
           <Zap class="w-3.5 h-3.5 text-accent-indigo" />
           <span class="font-bold">{formattedTotalSpeed}</span>
           {#if $settingsStore?.speedLimitMBps && $settingsStore.speedLimitMBps > 0}
@@ -253,28 +301,55 @@
         </div>
       {/if}
 
-      <button
-        type="button"
-        on:click={() => (showTokenModal = true)}
-        class="p-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-400 hover:text-slate-200 border border-dark-700 transition-colors"
-        title="HF Access Token Settings"
-      >
-        <KeyRound class="w-4 h-4 {$settingsStore?.hfToken ? 'text-emerald-400' : 'text-slate-400'}" />
-      </button>
+      <!-- Custom Windows Window Controls (Minimize, Maximize/Restore, Close) -->
+      <div class="flex items-stretch h-full">
+        <!-- Minimize -->
+        <button
+          type="button"
+          on:click={handleMinimise}
+          class="window-control-btn"
+          title="Minimize"
+          aria-label="Minimize window"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+            <line x1="2.5" y1="8" x2="13.5" y2="8" stroke-linecap="round" />
+          </svg>
+        </button>
 
-      <!-- Theme Toggle Button -->
-      <button
-        type="button"
-        on:click={toggleTheme}
-        class="p-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-slate-400 hover:text-slate-200 border border-dark-700 transition-colors flex items-center justify-center"
-        title={$theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-      >
-        {#if $theme === 'dark'}
-          <Sun class="w-4 h-4 text-amber-400" />
-        {:else}
-          <Moon class="w-4 h-4 text-accent-indigo" />
-        {/if}
-      </button>
+        <!-- Maximize / Restore -->
+        <button
+          type="button"
+          on:click={handleToggleMaximise}
+          class="window-control-btn"
+          title={isMaximised ? 'Restore' : 'Maximize'}
+          aria-label={isMaximised ? 'Restore window' : 'Maximize window'}
+        >
+          {#if isMaximised}
+            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+              <rect x="4.5" y="2.5" width="8.5" height="8.5" rx="0.5" />
+              <path d="M2.5 5.5v7.5a0.5 0.5 0 0 0 0.5 0.5h7.5" />
+            </svg>
+          {:else}
+            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+              <rect x="2.5" y="2.5" width="11" height="11" rx="1" />
+            </svg>
+          {/if}
+        </button>
+
+        <!-- Close -->
+        <button
+          type="button"
+          on:click={handleClose}
+          class="window-control-btn close-btn"
+          title="Close"
+          aria-label="Close window"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+            <line x1="3.5" y1="3.5" x2="12.5" y2="12.5" stroke-linecap="round" />
+            <line x1="12.5" y1="3.5" x2="3.5" y2="12.5" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
     </div>
   </header>
 
